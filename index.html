@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="lo">
+    <head>
+        <meta charset="UTF-8" />
+        <title>Currency Converter</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                background: #f0f2f5;
+                margin: 0;
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+            .container {
+                background: #fff;
+                padding: 30px;
+                border-radius: 15px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+                text-align: center;
+                width: 380px;
+            }
+            h2 {
+                margin-bottom: 20px;
+                color: #333;
+            }
+            .row {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin: 10px 0;
+            }
+            input {
+                width: 48%;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                font-size: 16px;
+            }
+            .currency-select {
+                display: flex;
+                align-items: center;
+                width: 48%;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                padding: 5px;
+                background: #fff;
+            }
+            .currency-select img {
+                width: 24px;
+                height: 16px;
+                margin-right: 8px;
+                padding: 6px;
+                border: 1px solid #ccc;
+            }
+            select {
+                border: none;
+                font-size: 16px;
+                flex: 1;
+                background: transparent;
+                outline: none;
+            }
+            #rate {
+                margin: 15px 0;
+                font-weight: bold;
+                color: #444;
+            }
+            .swap-btn {
+                background: #4caf50;
+                color: #fff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 8px;
+                font-size: 16px;
+                cursor: pointer;
+                transition: 0.3s;
+            }
+            .swap-btn:hover {
+                background: #45a049;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <h2>💱 ອັດຕາແລກປ່ຽນເງິນຕຣາ</h2>
+
+            <div class="row">
+                <input type="text" id="amount-one" value="100" />
+                <div class="currency-select">
+                    <img id="flag-one" src="https://flagcdn.com/us.svg" />
+                    <select id="currency-one"></select>
+                </div>
+            </div>
+
+            <div class="row">
+                <input type="text" id="amount-two" readonly />
+                <div class="currency-select">
+                    <img id="flag-two" src="https://flagcdn.com/th.svg" />
+                    <select id="currency-two"></select>
+                </div>
+            </div>
+
+            <p id="rate"></p>
+            <button class="swap-btn" id="swap">🔄 ສະຫຼັບ</button>
+        </div>
+
+        <script>
+            const amountOne = document.getElementById('amount-one');
+            const amountTwo = document.getElementById('amount-two');
+            const currencyOne = document.getElementById('currency-one');
+            const currencyTwo = document.getElementById('currency-two');
+            const flagOne = document.getElementById('flag-one');
+            const flagTwo = document.getElementById('flag-two');
+            const rateEl = document.getElementById('rate');
+            const swapBtn = document.getElementById('swap');
+
+            const API_URL =
+                'https://v6.exchangerate-api.com/v6/1543c26f0f01564d533e319c/latest/USD';
+
+            // mapping currency code -> country code (สำหรับ flag)
+            const currencyToCountry = {
+                USD: 'us',
+                EUR: 'eu',
+                GBP: 'gb',
+                AUD: 'au',
+                CAD: 'ca',
+                THB: 'th',
+                LAK: 'la',
+                JPY: 'jp',
+                CNY: 'cn',
+                KRW: 'kr',
+                VND: 'vn',
+                INR: 'in',
+                IDR: 'id',
+                MYR: 'my',
+                SGD: 'sg',
+                PHP: 'ph',
+                HKD: 'hk',
+                NZD: 'nz',
+                CHF: 'ch',
+                SEK: 'se',
+                NOK: 'no',
+                DKK: 'dk',
+                RUB: 'ru',
+                BRL: 'br',
+                ARS: 'ar',
+                MXN: 'mx',
+                ZAR: 'za',
+                TRY: 'tr',
+                SAR: 'sa',
+                AED: 'ae',
+                KWD: 'kw',
+                QAR: 'qa',
+                EGP: 'eg',
+                NGN: 'ng',
+                PKR: 'pk',
+                BDT: 'bd',
+                LKR: 'lk',
+                MMK: 'mm',
+                KHR: 'kh',
+                MNT: 'mn',
+                PLN: 'pl',
+                HUF: 'hu',
+                CZK: 'cz',
+                BGN: 'bg',
+                RON: 'ro',
+                ISK: 'is',
+                CLP: 'cl',
+                COP: 'co',
+                PEN: 'pe',
+                UAH: 'ua',
+                IRR: 'ir',
+                IQD: 'iq',
+                ILS: 'il',
+                MAD: 'ma',
+                TND: 'tn',
+                DZD: 'dz',
+                XAF: 'cm',
+                XOF: 'sn',
+                XPF: 'pf',
+            };
+
+            function formatNumber(num) {
+                return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+            }
+
+            function parseNumber(str) {
+                return parseFloat(str.replace(/,/g, '')) || 0;
+            }
+
+            async function loadCurrencies() {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                const currencies = Object.keys(data.conversion_rates);
+
+                currencies.forEach((cur) => {
+                    let option1 = document.createElement('option');
+                    option1.value = cur;
+                    option1.textContent = cur;
+                    currencyOne.appendChild(option1);
+
+                    let option2 = document.createElement('option');
+                    option2.value = cur;
+                    option2.textContent = cur;
+                    currencyTwo.appendChild(option2);
+                });
+
+                currencyOne.value = 'USD';
+                currencyTwo.value = 'LAK';
+
+                updateFlag(currencyOne.value, flagOne);
+                updateFlag(currencyTwo.value, flagTwo);
+
+                calculate();
+            }
+
+            async function calculate() {
+                const res = await fetch(API_URL);
+                const data = await res.json();
+                const rate =
+                    data.conversion_rates[currencyTwo.value] /
+                    data.conversion_rates[currencyOne.value];
+
+                const amount = parseNumber(amountOne.value);
+                const converted = amount * rate;
+
+                rateEl.innerText = `1 ${currencyOne.value} = ${rate.toFixed(
+                    2
+                )} ${currencyTwo.value}`;
+                amountTwo.value = formatNumber(converted.toFixed(2));
+            }
+
+            function updateFlag(currency, imgElement) {
+                const country = currencyToCountry[currency];
+                if (country) {
+                    imgElement.src = `https://flagcdn.com/${country.toLowerCase()}.svg`;
+                } else {
+                    // ใช้ธง default (ธงสีเทา)
+                    imgElement.src = 'https://flagcdn.com/xx.svg';
+                }
+            }
+
+            amountOne.addEventListener('input', () => {
+                let value = parseNumber(amountOne.value);
+                amountOne.value = value ? formatNumber(value) : '';
+                calculate();
+            });
+
+            currencyOne.addEventListener('change', () => {
+                updateFlag(currencyOne.value, flagOne);
+                calculate();
+            });
+            currencyTwo.addEventListener('change', () => {
+                updateFlag(currencyTwo.value, flagTwo);
+                calculate();
+            });
+
+            swapBtn.addEventListener('click', () => {
+                const temp = currencyOne.value;
+                currencyOne.value = currencyTwo.value;
+                currencyTwo.value = temp;
+                updateFlag(currencyOne.value, flagOne);
+                updateFlag(currencyTwo.value, flagTwo);
+                calculate();
+            });
+
+            loadCurrencies();
+        </script>
+    </body>
+</html>
